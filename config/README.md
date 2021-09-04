@@ -27,9 +27,9 @@ type DBConfig struct {
 }
 
 type NewRelicConfig struct {
-	Enabled bool   `mapstructure:"enabled" default:"false"`
-	AppName string `mapstructure:"app_name" default:"test-app"`
-	License string `mapstructure:"license"`
+	Enabled bool                `mapstructure:"enabled" default:"false"`
+	AppName string              `mapstructure:"app_name" default:"test-app"`
+	License config.SecretString `mapstructure:"license"`
 }
 
 func main() {
@@ -46,8 +46,10 @@ func main() {
 	if err := l.Load(&c); err != nil { // pass pointer to the struct into which you want to load config
 		panic(err)
 	}
-	s, _ := json.MarshalIndent(c, "", "  ") // spaces: 2 | tabs: 1 😛
+	s, _ := config.GetPrintable(&c)
 	fmt.Println(string(s))
+	// For getting actual value of secrets
+	fmt.Println(c.NewRelic.License.Secret())
 }
 ```
 

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strings"
@@ -16,6 +17,16 @@ type Loader struct {
 }
 
 type LoaderOption func(*Loader)
+
+type SecretString string
+
+func (s SecretString) String() string {
+	return "****************"
+}
+
+func (s SecretString) Secret() string {
+	return string(s)
+}
 
 // WithViper sets the given viper instance for loading configs
 // instead of the default configured one
@@ -154,4 +165,66 @@ func getFlattenedStructKeys(config interface{}) ([]string, error) {
 	}
 
 	return keys, nil
+}
+
+func GetPrintable(config interface{}) ([]byte, error) {
+	var structMap map[string]interface{}
+
+	newConfig := reflect.New(reflect.ValueOf(config).Elem().Type()).Interface()
+
+	// Copy data to map so we can iterate on each field using DecodeHook
+	if err := Decode(config, &structMap); err != nil {
+		return nil, err
+	}
+
+	// Copy from map to newConfig to run DecodeHook on each field
+	if err := Decode(structMap, &newConfig); err != nil {
+		return nil, err
+	}
+
+	// Copy back to map to get printable field names which are
+	// generated after considering the mapstructure struct tags if any
+	if err := Decode(newConfig, &structMap); err != nil {
+		return nil, err
+	}
+
+	printable, err := json.MarshalIndent(structMap, "", "  ")
+	return printable, err
+}
+
+func Decode(input interface{}, output interface{}) error {
+	// Config same as what viper uses with additional
+	// SecretStringMaskHookFunc() DecodeHook added
+	config := &mapstructure.DecoderConfig{
+		Metadata:         nil,
+		Result:           output,
+		WeaklyTypedInput: true,
+		DecodeHook: mapstructure.ComposeDecodeHookFunc(
+			mapstructure.StringToTimeDurationHookFunc(),
+			mapstructure.StringToSliceHookFunc(","),
+			SecretStringMaskHookFunc(),
+		),
+	}
+
+	decoder, err := mapstructure.NewDecoder(config)
+	if err != nil {
+		return err
+	}
+
+	return decoder.Decode(input)
+}
+
+func SecretStringMaskHookFunc() mapstructure.DecodeHookFunc {
+	return func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
+		var secret SecretString
+
+		if f != reflect.TypeOf(secret) {
+			return data, nil
+		}
+
+		if t != reflect.TypeOf(secret) {
+			return data, nil
+		}
+		return data.(SecretString).String(), nil
+	}
 }
