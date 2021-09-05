@@ -131,12 +131,13 @@ func verifyParamIsPtrToStructElsePanic(param interface{}) error {
 	value := reflect.ValueOf(param)
 	if value.Kind() != reflect.Ptr {
 		return fmt.Errorf("require ptr to a struct for Load. Got %v", value.Kind())
-	} else {
-		value = reflect.Indirect(value)
-		if value.Kind() != reflect.Struct {
-			return fmt.Errorf("require ptr to a struct for Load. got ptr to %v", value.Kind())
-		}
 	}
+
+	value = reflect.Indirect(value)
+	if value.Kind() != reflect.Struct {
+		return fmt.Errorf("require ptr to a struct for Load. got ptr to %v", value.Kind())
+	}
+
 	return nil
 }
 
