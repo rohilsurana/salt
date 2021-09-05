@@ -174,18 +174,18 @@ func GetPrintable(config interface{}) ([]byte, error) {
 	newConfig := reflect.New(reflect.ValueOf(config).Elem().Type()).Interface()
 
 	// Copy data to map so we can iterate on each field using DecodeHook
-	if err := Decode(config, &structMap); err != nil {
+	if err := decode(config, &structMap); err != nil {
 		return nil, err
 	}
 
 	// Copy from map to newConfig to run DecodeHook on each field
-	if err := Decode(structMap, &newConfig); err != nil {
+	if err := decode(structMap, &newConfig); err != nil {
 		return nil, err
 	}
 
 	// Copy back to map to get printable field names which are
 	// generated after considering the mapstructure struct tags if any
-	if err := Decode(newConfig, &structMap); err != nil {
+	if err := decode(newConfig, &structMap); err != nil {
 		return nil, err
 	}
 
@@ -193,7 +193,7 @@ func GetPrintable(config interface{}) ([]byte, error) {
 	return printable, err
 }
 
-func Decode(input interface{}, output interface{}) error {
+func decode(input interface{}, output interface{}) error {
 	// Config same as what viper uses with additional
 	// SecretStringMaskHookFunc() DecodeHook added
 	config := &mapstructure.DecoderConfig{
@@ -203,7 +203,7 @@ func Decode(input interface{}, output interface{}) error {
 		DecodeHook: mapstructure.ComposeDecodeHookFunc(
 			mapstructure.StringToTimeDurationHookFunc(),
 			mapstructure.StringToSliceHookFunc(","),
-			SecretStringMaskHookFunc(),
+			secretStringMaskHookFunc(),
 		),
 	}
 
@@ -215,7 +215,7 @@ func Decode(input interface{}, output interface{}) error {
 	return decoder.Decode(input)
 }
 
-func SecretStringMaskHookFunc() mapstructure.DecodeHookFunc {
+func secretStringMaskHookFunc() mapstructure.DecodeHookFunc {
 	return func(f reflect.Type, t reflect.Type, data interface{}) (interface{}, error) {
 		var secret SecretString
 
